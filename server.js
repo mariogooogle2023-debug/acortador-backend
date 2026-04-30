@@ -2,6 +2,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const session = require('express-session');
+const bcrypt = require('bcrypt');
 const { nanoid } = require('nanoid');
 
 const app = express();
@@ -9,8 +10,9 @@ const db = new sqlite3.Database('./db.sqlite');
 
 app.use(express.json());
 
+// ⚠️ En producción puedes cambiar esto a tu dominio real
 app.use(cors({
-  origin: 'https://acortador.odoo.com',
+  origin: '*',
   credentials: true
 }));
 
@@ -42,8 +44,7 @@ CREATE TABLE IF NOT EXISTS links (
 )
 `);
 
-const bcrypt = require('bcrypt');
-
+// 👤 REGISTRO
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
 
@@ -58,6 +59,8 @@ app.post('/register', async (req, res) => {
     }
   );
 });
+
+// 🔐 LOGIN
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
@@ -77,6 +80,8 @@ app.post('/login', (req, res) => {
     }
   );
 });
+
+// 🔗 ACORTAR LINK
 app.post('/shorten', (req, res) => {
   if (!req.session.userId)
     return res.status(401).json({ error: 'No login' });
@@ -90,9 +95,11 @@ app.post('/shorten', (req, res) => {
   );
 
   res.json({
-    shortUrl: `http://localhost:3000/${short}`
+    shortUrl: `${req.protocol}://${req.get('host')}/${short}`
   });
 });
+
+// 🔁 REDIRECCIÓN
 app.get('/:code', (req, res) => {
   db.get(
     `SELECT original FROM links WHERE short = ?`,
@@ -104,11 +111,14 @@ app.get('/:code', (req, res) => {
   );
 });
 
-// 🚀 TEST ROUTE
+// 🚀 TEST
 app.get('/', (req, res) => {
   res.send('Backend funcionando 🚀');
 });
 
-app.listen(3000, () => {
-  console.log('Servidor en http://localhost:3000');
+// 🔥 IMPORTANTE PARA RENDER
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log('Servidor corriendo en puerto ' + PORT);
 });
