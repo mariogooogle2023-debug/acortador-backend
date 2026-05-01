@@ -25,7 +25,9 @@ app.use(session({
     sameSite: 'lax'
   }
 }));
-
+app.get('/test', (req, res) => {
+  res.send('TEST OK');
+});
 // 🧠 BASE DE DATOS
 db.run(`
 CREATE TABLE IF NOT EXISTS users (
