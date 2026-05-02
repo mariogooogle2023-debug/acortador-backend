@@ -1,12 +1,12 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const { nanoid } = require('nanoid');
+const Database = require('better-sqlite3');
 
 const app = express();
-const db = new sqlite3.Database('./db.sqlite');
+const db = new Database('db.sqlite');
 
 app.use(express.json());
 
@@ -36,55 +36,54 @@ app.get('/', (req, res) => {
 });
 
 // BASE DE DATOS
-db.run(`
+db.prepare(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE,
   password TEXT
 )
-`);
+`).run();
 
-db.run(`
+db.prepare(`
 CREATE TABLE IF NOT EXISTS links (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   short TEXT,
   original TEXT,
   user_id INTEGER
 )
-`);
+`).run();
 
 // REGISTRO
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   const hash = await bcrypt.hash(password, 10);
 
-  db.run(
-    `INSERT INTO users (username, password) VALUES (?, ?)`,
-    [username, hash],
-    (err) => {
-      if (err) return res.status(400).json({ error: 'Usuario ya existe' });
-      res.json({ ok: true });
-    }
-  );
+  try {
+    db.prepare(
+      `INSERT INTO users (username, password) VALUES (?, ?)`
+    ).run(username, hash);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: 'Usuario ya existe' });
+  }
 });
 
 // LOGIN
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
-  db.get(
-    `SELECT * FROM users WHERE username = ?`,
-    [username],
-    async (err, user) => {
-      if (!user) return res.status(400).json({ error: 'No existe' });
+  const user = db.prepare(
+    `SELECT * FROM users WHERE username = ?`
+  ).get(username);
 
-      const ok = await bcrypt.compare(password, user.password);
-      if (!ok) return res.status(400).json({ error: 'Incorrecto' });
+  if (!user) return res.status(400).json({ error: 'No existe' });
 
-      req.session.userId = user.id;
-      res.json({ ok: true });
-    }
-  );
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(400).json({ error: 'Incorrecto' });
+
+  req.session.userId = user.id;
+  res.json({ ok: true });
 });
 
 // ACORTAR
@@ -95,10 +94,9 @@ app.post('/shorten', (req, res) => {
   const { url } = req.body;
   const short = nanoid(6);
 
-  db.run(
-    `INSERT INTO links (short, original, user_id) VALUES (?, ?, ?)`,
-    [short, url, req.session.userId]
-  );
+  db.prepare(
+    `INSERT INTO links (short, original, user_id) VALUES (?, ?, ?)`
+  ).run(short, url, req.session.userId);
 
   res.json({
     shortUrl: `${req.protocol}://${req.get('host')}/${short}`
@@ -107,17 +105,16 @@ app.post('/shorten', (req, res) => {
 
 // REDIRECCIÓN
 app.get('/:code', (req, res) => {
-  db.get(
-    `SELECT original FROM links WHERE short = ?`,
-    [req.params.code],
-    (err, row) => {
-      if (!row) return res.send('No existe');
-      res.redirect(row.original);
-    }
-  );
+  const row = db.prepare(
+    `SELECT original FROM links WHERE short = ?`
+  ).get(req.params.code);
+
+  if (!row) return res.send('No existe');
+
+  res.redirect(row.original);
 });
 
-// PUERTO (RENDER)
+// PUERTO
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

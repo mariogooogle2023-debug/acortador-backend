@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "scripts": {
-  "start": "node server.js"
-}
+      "start": "node server.js"
+    }
   },
   "keywords": [],
   "author": "",
@@ -19,7 +19,6 @@
     "express-session": "^1.19.0",
     "install": "^0.13.0",
     "nanoid": "^5.1.9",
-    "npm": "^11.13.0",
-    "sqlite3": "^6.0.1"
+    "npm": "^11.13.0"
   }
 }
