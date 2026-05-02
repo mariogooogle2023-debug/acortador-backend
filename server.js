@@ -11,7 +11,7 @@ const db = new Database('db.sqlite');
 app.use(express.json());
 
 app.use(cors({
-  origin: '*',
+  origin: 'https://acortador.odoo.com',
   credentials: true
 }));
 
@@ -20,8 +20,8 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
-    sameSite: 'lax'
+    secure: true,        // 🔥 obligatorio en https (Render)
+    sameSite: 'none'     // 🔥 permite cookies entre dominios
   }
 }));
 
