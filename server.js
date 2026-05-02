@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const { nanoid } = require('nanoid');
+const nanoid = require('nanoid').nanoid;
 const Database = require('better-sqlite3');
 
 const app = express();
