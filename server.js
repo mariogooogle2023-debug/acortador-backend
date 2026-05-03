@@ -5,6 +5,7 @@ const nanoid = require('nanoid').nanoid;
 const Database = require('better-sqlite3');
 
 const app = express();
+app.set('trust proxy', 1);
 const db = new Database('db.sqlite');
 
 app.use(express.json());
