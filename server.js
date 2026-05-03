@@ -5,12 +5,15 @@ const nanoid = require('nanoid').nanoid;
 const Database = require('better-sqlite3');
 
 const app = express();
+
+// 🔥 IMPORTANTE PARA RENDER
 app.set('trust proxy', 1);
+
 const db = new Database('db.sqlite');
 
 app.use(express.json());
 
-/* 🔥 CORS MANUAL (SIN *) */
+// 🔥 CORS MANUAL
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "https://acortador.odoo.com");
   res.header("Access-Control-Allow-Credentials", "true");
@@ -24,28 +27,31 @@ app.use((req, res, next) => {
   next();
 });
 
-/* 🔐 SESSION */
+// 🔥 SESSION CORREGIDA
 app.use(session({
+  name: "acortador_session", // 👈 clave
   secret: 'acortador_secret',
   resave: false,
   saveUninitialized: false,
+  proxy: true, // 👈 CLAVE PARA RENDER
   cookie: {
     secure: true,
-    sameSite: 'none'
+    sameSite: 'none',
+    httpOnly: true
   }
 }));
 
-/* 🧪 TEST */
+// TEST
 app.get('/test', (req, res) => {
   res.send('TEST OK');
 });
 
-/* 🏠 ROOT */
+// ROOT
 app.get('/', (req, res) => {
   res.send('Backend funcionando 🚀');
 });
 
-/* 🧠 BASE DE DATOS */
+// DB
 db.prepare(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +69,7 @@ CREATE TABLE IF NOT EXISTS links (
 )
 `).run();
 
-/* 👤 REGISTRO */
+// REGISTER
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   const hash = await bcrypt.hash(password, 10);
@@ -79,7 +85,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-/* 🔐 LOGIN */
+// LOGIN
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -93,13 +99,18 @@ app.post('/login', async (req, res) => {
   if (!ok) return res.status(400).json({ error: 'Incorrecto' });
 
   req.session.userId = user.id;
-  res.json({ ok: true });
+
+  // 🔥 FORZAR GUARDADO DE SESIÓN
+  req.session.save(() => {
+    res.json({ ok: true });
+  });
 });
 
-/* 🔗 ACORTAR */
+// SHORTEN
 app.post('/shorten', (req, res) => {
-  if (!req.session.userId)
+  if (!req.session.userId) {
     return res.status(401).json({ error: 'No login' });
+  }
 
   const { url } = req.body;
   const short = nanoid(6);
@@ -113,7 +124,7 @@ app.post('/shorten', (req, res) => {
   });
 });
 
-/* 🔁 REDIRECCIÓN */
+// REDIRECT
 app.get('/:code', (req, res) => {
   const row = db.prepare(
     `SELECT original FROM links WHERE short = ?`
@@ -124,7 +135,7 @@ app.get('/:code', (req, res) => {
   res.redirect(row.original);
 });
 
-/* 🚀 PUERTO */
+// PORT
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
