@@ -10,18 +10,36 @@ const db = new Database('db.sqlite');
 
 app.use(express.json());
 
+// ✅ CORS CORRECTO (sin *)
 app.use(cors({
+  origin: 'https://acortador.odoo.com',
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
+// ✅ IMPORTANTE: manejar preflight SIN usar "*"
+app.options('/login', cors({
+  origin: 'https://acortador.odoo.com',
+  credentials: true
+}));
+app.options('/register', cors({
+  origin: 'https://acortador.odoo.com',
+  credentials: true
+}));
+app.options('/shorten', cors({
   origin: 'https://acortador.odoo.com',
   credentials: true
 }));
 
+// ✅ SESSION (cookies cross-domain)
 app.use(session({
   secret: 'acortador_secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: true,        // 🔥 obligatorio en https (Render)
-    sameSite: 'none'     // 🔥 permite cookies entre dominios
+    secure: true,
+    sameSite: 'none'
   }
 }));
 
@@ -114,7 +132,7 @@ app.get('/:code', (req, res) => {
   res.redirect(row.original);
 });
 
-// PUERTO
+// PUERTO (RENDER)
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
