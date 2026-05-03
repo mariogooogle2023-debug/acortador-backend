@@ -1,22 +1,16 @@
 const express = require('express');
-const session = require('express-session');
 const bcrypt = require('bcrypt');
 const nanoid = require('nanoid').nanoid;
 const Database = require('better-sqlite3');
 
 const app = express();
-
-// 🔥 IMPORTANTE PARA RENDER
-app.set('trust proxy', 1);
-
 const db = new Database('db.sqlite');
 
 app.use(express.json());
 
-// 🔥 CORS MANUAL
+/* 🔥 CORS (permite Odoo) */
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "https://acortador.odoo.com");
-  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Headers", "Content-Type");
   res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
 
@@ -27,31 +21,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🔥 SESSION CORREGIDA
-app.use(session({
-  name: "acortador_session", // 👈 clave
-  secret: 'acortador_secret',
-  resave: false,
-  saveUninitialized: false,
-  proxy: true, // 👈 CLAVE PARA RENDER
-  cookie: {
-    secure: true,
-    sameSite: 'none',
-    httpOnly: true
-  }
-}));
-
-// TEST
+/* 🧪 TEST */
 app.get('/test', (req, res) => {
   res.send('TEST OK');
 });
 
-// ROOT
+/* 🏠 ROOT */
 app.get('/', (req, res) => {
   res.send('Backend funcionando 🚀');
 });
 
-// DB
+/* 🧠 BASE DE DATOS */
 db.prepare(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,9 +49,10 @@ CREATE TABLE IF NOT EXISTS links (
 )
 `).run();
 
-// REGISTER
+/* 👤 REGISTRO */
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
+
   const hash = await bcrypt.hash(password, 10);
 
   try {
@@ -85,7 +66,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// LOGIN
+/* 🔐 LOGIN (🔥 CORREGIDO) */
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -93,38 +74,43 @@ app.post('/login', async (req, res) => {
     `SELECT * FROM users WHERE username = ?`
   ).get(username);
 
-  if (!user) return res.status(400).json({ error: 'No existe' });
+  if (!user) {
+    return res.status(400).json({ error: 'No existe' });
+  }
 
   const ok = await bcrypt.compare(password, user.password);
-  if (!ok) return res.status(400).json({ error: 'Incorrecto' });
 
-  req.session.userId = user.id;
+  if (!ok) {
+    return res.status(400).json({ error: 'Incorrecto' });
+  }
 
-  // 🔥 FORZAR GUARDADO DE SESIÓN
-  req.session.save(() => {
-    res.json({ ok: true });
+  // 🔥 CLAVE: devolver userId
+  res.json({
+    ok: true,
+    userId: user.id
   });
 });
 
-// SHORTEN
+/* 🔗 ACORTAR */
 app.post('/shorten', (req, res) => {
-  if (!req.session.userId) {
+  const { url, userId } = req.body;
+
+  if (!userId) {
     return res.status(401).json({ error: 'No login' });
   }
 
-  const { url } = req.body;
   const short = nanoid(6);
 
   db.prepare(
     `INSERT INTO links (short, original, user_id) VALUES (?, ?, ?)`
-  ).run(short, url, req.session.userId);
+  ).run(short, url, userId);
 
   res.json({
     shortUrl: `${req.protocol}://${req.get('host')}/${short}`
   });
 });
 
-// REDIRECT
+/* 🔁 REDIRECCIÓN */
 app.get('/:code', (req, res) => {
   const row = db.prepare(
     `SELECT original FROM links WHERE short = ?`
@@ -135,7 +121,7 @@ app.get('/:code', (req, res) => {
   res.redirect(row.original);
 });
 
-// PORT
+/* 🚀 PUERTO */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
