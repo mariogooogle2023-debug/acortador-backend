@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const nanoid = require('nanoid').nanoid;
@@ -10,29 +9,21 @@ const db = new Database('db.sqlite');
 
 app.use(express.json());
 
-// ✅ CORS CORRECTO (sin *)
-app.use(cors({
-  origin: 'https://acortador.odoo.com',
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-}));
+/* 🔥 CORS MANUAL (SIN *) */
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://acortador.odoo.com");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
 
-// ✅ IMPORTANTE: manejar preflight SIN usar "*"
-app.options('/login', cors({
-  origin: 'https://acortador.odoo.com',
-  credentials: true
-}));
-app.options('/register', cors({
-  origin: 'https://acortador.odoo.com',
-  credentials: true
-}));
-app.options('/shorten', cors({
-  origin: 'https://acortador.odoo.com',
-  credentials: true
-}));
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
 
-// ✅ SESSION (cookies cross-domain)
+  next();
+});
+
+/* 🔐 SESSION */
 app.use(session({
   secret: 'acortador_secret',
   resave: false,
@@ -43,17 +34,17 @@ app.use(session({
   }
 }));
 
-// TEST
+/* 🧪 TEST */
 app.get('/test', (req, res) => {
   res.send('TEST OK');
 });
 
-// ROOT
+/* 🏠 ROOT */
 app.get('/', (req, res) => {
   res.send('Backend funcionando 🚀');
 });
 
-// BASE DE DATOS
+/* 🧠 BASE DE DATOS */
 db.prepare(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +62,7 @@ CREATE TABLE IF NOT EXISTS links (
 )
 `).run();
 
-// REGISTRO
+/* 👤 REGISTRO */
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   const hash = await bcrypt.hash(password, 10);
@@ -87,7 +78,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// LOGIN
+/* 🔐 LOGIN */
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -104,7 +95,7 @@ app.post('/login', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ACORTAR
+/* 🔗 ACORTAR */
 app.post('/shorten', (req, res) => {
   if (!req.session.userId)
     return res.status(401).json({ error: 'No login' });
@@ -121,7 +112,7 @@ app.post('/shorten', (req, res) => {
   });
 });
 
-// REDIRECCIÓN
+/* 🔁 REDIRECCIÓN */
 app.get('/:code', (req, res) => {
   const row = db.prepare(
     `SELECT original FROM links WHERE short = ?`
@@ -132,7 +123,7 @@ app.get('/:code', (req, res) => {
   res.redirect(row.original);
 });
 
-// PUERTO (RENDER)
+/* 🚀 PUERTO */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
